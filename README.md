@@ -33,7 +33,7 @@ This project implements a full-text search engine in Go. It's designed to effici
 
 ### Running the Application
 
-1. Prepare your dataset. The application expects an XML file with Wikipedia abstracts. You can download a sample file from [Wikipedia dumps](https://dumps.wikimedia.org/).
+1. Prepare your dataset. The application expects an XML file with Wikipedia abstracts. You can download a sample file from [Wikipedia dumps](https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-abstract1.xml.gz).
 
 2. Run the application:
    ```
