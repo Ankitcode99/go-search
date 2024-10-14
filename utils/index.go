@@ -1,7 +1,11 @@
 package utils
 
 import (
+	"fmt"
+	"strconv"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 type Index map[string][]int
@@ -27,7 +31,9 @@ func (index *Index) Add(docs []document) {
 		batchIndex := i / batchSize
 		wg.Add(1)
 
-		go func(batch []document, batchMap Index) {
+		start := time.Now()
+
+		go func(batch []document, batchMap Index, batchIndex int) {
 			defer wg.Done()
 
 			// Process each document in the batch
@@ -39,7 +45,9 @@ func (index *Index) Add(docs []document) {
 					}
 				}
 			}
-		}(batch, batchMaps[batchIndex])
+
+			fmt.Printf("batch %d completed in %s\n", batchIndex, time.Since(start))
+		}(batch, batchMaps[batchIndex], batchIndex)
 	}
 
 	// Wait for all goroutines to finish
@@ -51,6 +59,52 @@ func (index *Index) Add(docs []document) {
 			(*index)[token] = append((*index)[token], ids...)
 		}
 	}
+}
+
+var CONCURRENT_THREADS = 50 * 2
+var idx int32 = 0
+
+func doWork(name string, wg *sync.WaitGroup, docs []document, index *sync.Map) {
+	start := time.Now()
+	defer wg.Done()
+	for {
+		x := atomic.AddInt32(&idx, 1) - 1
+		if int(x) >= len(docs) {
+			break
+		}
+		doc := docs[int(x)]
+
+		for _, token := range analyse(doc.Text) {
+			index.LoadOrStore(token, &sync.Map{})
+			tokenMap, _ := index.Load(token)
+			tokenMap.(*sync.Map).Store(doc.Id, struct{}{})
+		}
+	}
+	fmt.Printf("thread %s completed in %s\n", name, time.Since(start))
+}
+
+func (index *Index) AddConcurrent(docs []document) {
+	var wg sync.WaitGroup
+	concurrentIndex := &sync.Map{}
+
+	for i := 0; i < CONCURRENT_THREADS; i++ {
+		wg.Add(1)
+		go doWork(strconv.Itoa(i), &wg, docs, concurrentIndex)
+	}
+
+	wg.Wait()
+
+	// Convert sync.Map back to regular map
+	concurrentIndex.Range(func(key, value interface{}) bool {
+		token := key.(string)
+		ids := []int{}
+		value.(*sync.Map).Range(func(k, v interface{}) bool {
+			ids = append(ids, k.(int))
+			return true
+		})
+		(*index)[token] = ids
+		return true
+	})
 }
 
 func (index *Index) Search(query string) []int {

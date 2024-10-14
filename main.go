@@ -31,6 +31,11 @@ func main() {
 	invertedIndex.Add(docs)
 	log.Printf("Indexed %d documents in %v", len(docs), time.Since(start))
 
+	// start = time.Now()
+	// invIdx := make(utils.Index)
+	// invIdx.AddConcurrent(docs)
+	// log.Printf("Indexed concurrent %d documents in %v", len(docs), time.Since(start))
+
 	start = time.Now()
 	matchedIds := invertedIndex.Search(searchQuery)
 	log.Printf("Search found %d documents in %v", len(matchedIds), time.Since(start))
